@@ -28,10 +28,7 @@ import com.trivago.vo.CucableFeature;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -324,6 +321,24 @@ public class PropertyManager {
 
     public boolean isCucumberFeatureListFileSource() {
         return cucumberFeatureListFile != null && !cucumberFeatureListFile.isEmpty();
+    }
+
+    private List<String> browsers;
+
+    public List<String> getBrowsers() {
+        return browsers;
+    }
+
+    public void setBrowsers(Object browsers) {
+        if (browsers == null || browsers.toString().isEmpty()) {
+            this.browsers = Collections.singletonList("chrome");
+        } else if (browsers instanceof String) {
+            this.browsers = Arrays.asList(((String) browsers).split("\\s*,\\s*"));
+        } else if (browsers instanceof List) {
+            this.browsers = (List<String>) browsers;
+        } else {
+            throw new IllegalArgumentException("Invalid type for 'browsers' parameter.");
+        }
     }
 
     public enum ParallelizationMode {

@@ -121,6 +121,9 @@ CucablePlugin extends AbstractMojo {
     @Parameter(property = "parallel.scenarioNames")
     private String scenarioNames;
 
+    @Parameter(property = "parallel.browsers", defaultValue = "chrome")
+    private String browsers;
+
     @Inject
     public CucablePlugin(
             PropertyManager propertyManager,
@@ -156,6 +159,7 @@ CucablePlugin extends AbstractMojo {
         propertyManager.setDesiredNumberOfRunners(desiredNumberOfRunners);
         propertyManager.setDesiredNumberOfFeaturesPerRunner(desiredNumberOfFeaturesPerRunner);
         propertyManager.setScenarioNames(scenarioNames);
+        propertyManager.setBrowsers(browsers);
 
         // Validate passed POM properties
         propertyManager.checkForMissingMandatoryProperties();
