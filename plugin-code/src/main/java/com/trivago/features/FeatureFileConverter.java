@@ -234,6 +234,7 @@ public class FeatureFileConverter {
             List<SingleScenario> filteredScenarios = filterScenariosByBrowser(singleScenarios, browser);
             for (SingleScenario singleScenario : filteredScenarios) {
                 String featureFileName = getFeatureFileNameFromPath(Paths.get(sourceFeatureFilePath + "/" + browser));
+                featureFileName = appendFileName(featureFileName, browser);
                 Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
                 featureCounter++;
                 String scenarioCounterFilenamePart = String.format(SCENARIO_COUNTER_FORMAT, featureCounter);
@@ -495,6 +496,12 @@ public class FeatureFileConverter {
                         featureFileName,
                         logPostfix
                 ), DEFAULT);
+    }
+
+    private String appendFileName(String fileName, String appendedName) {
+        String fileNameWithoutExtension = fileName.substring(0, fileName.lastIndexOf("."));
+        String fileExtension = fileName.substring(fileName.lastIndexOf("."));
+        return fileNameWithoutExtension + "_" + appendedName + fileExtension;
     }
 
     /**
