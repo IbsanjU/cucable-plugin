@@ -41,14 +41,6 @@ CucablePlugin extends AbstractMojo {
     private final FeatureFileConverter featureFileConverter;
     private final CucableLogger logger;
 
-    public static void printLineNumberAndFileName() {
-        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-        if (stackTraceElements.length >= 3) {
-            StackTraceElement element = stackTraceElements[2];
-            System.out.println("File: " + element.getFileName() + ", Line: " + element.getLineNumber());
-        }
-    }
-
     /**
      * The complete path to the runner template file.
      */
