@@ -100,57 +100,46 @@ public class FeatureFileConverter {
      * @param cucableFeatures feature files to process
      * @throws CucablePluginException see {@link CucablePluginException}
      */
-    public void generateParallelizableFeatures(final List<CucableFeature> cucableFeatures) throws CucablePluginException {
-        List<String> browserNames = propertyManager.getBrowsers();
+    public void generateParallelizableFeatures(
+            final List<CucableFeature> cucableFeatures) throws CucablePluginException {
 
-        for (String browserName : browserNames) {
-            List<CucableFeature> filteredFeatures = filterFeaturesByBrowser(cucableFeatures, browserName);
+        int featureFileCounter = 0;
+        List<String> allGeneratedFeaturePaths = new ArrayList<>();
 
-            if (!filteredFeatures.isEmpty()) {
-                int featureFileCounter = 0;
-                List<String> allGeneratedFeaturePaths = new ArrayList<>();
-
-                for (CucableFeature cucableFeature : filteredFeatures) {
-                    List<Path> paths = fileSystemManager.getPathsFromCucableFeature(cucableFeature);
-                    if (paths.size() == 0) {
-                        logger.warn("No features and runners could be created. Please check your properties!");
-                    }
-                    for (Path path : paths) {
-                        List<String> generatedFeatureFilePaths = generateParallelizableFeatures(path, cucableFeature.getLineNumbers());
-                        allGeneratedFeaturePaths.addAll(generatedFeatureFilePaths);
-                        featureFileCounter += generatedFeatureFilePaths.size();
-                    }
-                }
-
-                int runnerFileCounter;
-                if (propertyManager.getDesiredNumberOfFeaturesPerRunner() > 0) {
-                    runnerFileCounter = generateRunnerClassesWithDesiredNumberOfFeatures(allGeneratedFeaturePaths, propertyManager.getDesiredNumberOfFeaturesPerRunner());
-                } else {
-                    runnerFileCounter = generateRunnerClassesWithDesiredNumberOfRunners(allGeneratedFeaturePaths, propertyManager.getDesiredNumberOfRunners());
-                }
-
-                logger.logInfoSeparator(DEFAULT);
-                logger.info(String.format("Cucable created %d separate %s and %d %s for browser: %s.",
-                                featureFileCounter,
-                                Language.singularPlural(featureFileCounter, "feature file", "feature files"),
-                                runnerFileCounter,
-                                Language.singularPlural(runnerFileCounter, "runner", "runners"),
-                                browserName),
-                        DEFAULT, COMPACT, MINIMAL);
-            }
-        }
-    }
-
-    private List<CucableFeature> filterFeaturesByBrowser(final List<CucableFeature> cucableFeatures, final String browserName) {
-        List<CucableFeature> filteredFeatures = new ArrayList<>();
         for (CucableFeature cucableFeature : cucableFeatures) {
-            if (cucableFeature.getBrowsers().contains(browserName)) {
-                filteredFeatures.add(cucableFeature);
+            List<Path> paths = fileSystemManager.getPathsFromCucableFeature(cucableFeature);
+            if (paths.size() == 0) {
+                logger.warn("No features and runners could be created. Please check your properties!");
+            }
+            for (Path path : paths) {
+                List<String> generatedFeatureFilePaths = generateParallelizableFeatures(path, cucableFeature.getLineNumbers());
+                allGeneratedFeaturePaths.addAll(generatedFeatureFilePaths);
+                featureFileCounter += generatedFeatureFilePaths.size();
             }
         }
-        return filteredFeatures;
-    }
 
+        int runnerFileCounter;
+        if (propertyManager.getDesiredNumberOfFeaturesPerRunner() > 0) {
+            runnerFileCounter = generateRunnerClassesWithDesiredNumberOfFeatures(
+                    allGeneratedFeaturePaths, propertyManager.getDesiredNumberOfFeaturesPerRunner()
+            );
+        } else {
+            runnerFileCounter = generateRunnerClassesWithDesiredNumberOfRunners(
+                    allGeneratedFeaturePaths, propertyManager.getDesiredNumberOfRunners()
+            );
+        }
+
+        logger.logInfoSeparator(DEFAULT);
+        logger.info(
+                String.format("Cucable created %d separate %s and %d %s.",
+                        featureFileCounter,
+                        Language.singularPlural(featureFileCounter, "feature file", "feature files"),
+                        runnerFileCounter,
+                        Language.singularPlural(runnerFileCounter, "runner", "runners")
+                ),
+                DEFAULT, COMPACT, MINIMAL
+        );
+    }
 
     /**
      * Converts all scenarios in the given feature file to single
@@ -226,42 +215,37 @@ public class FeatureFileConverter {
             final Path sourceFeatureFilePath,
             final List<SingleScenario> singleScenarios) throws FileCreationException {
 
-        String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
-        String browserName = propertyManager.getBrowserNames().get(0); // Assuming only one browser name is specified
-
-        // Create a folder for the browser if it doesn't exist
-        String browserFolderPath = propertyManager.getGeneratedFeatureDirectory() + "/" + browserName;
-        fileSystemManager.createFolder(browserFolderPath);
-
         // Stores all generated feature file names and associated source feature paths for later runner creation
         List<String> generatedFeaturePaths = new ArrayList<>();
 
         // Default parallelization mode
         for (SingleScenario singleScenario : singleScenarios) {
-            String scenarioName = singleScenario.getScenarioName();
-            String generatedFileName = featureFileName + "_" + browserName + "_" + scenarioName;
+            String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
+            Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
+            featureCounter++;
+            String scenarioCounterFilenamePart = String.format(SCENARIO_COUNTER_FORMAT, featureCounter);
+            for (int testRuns = 1; testRuns <= propertyManager.getNumberOfTestRuns(); testRuns++) {
+                String generatedFileName =
+                        featureFileName
+                                .concat(scenarioCounterFilenamePart);
 
-            String generatedFeatureFilePath = browserFolderPath + "/" + generatedFileName + FEATURE_FILE_EXTENSION;
-            saveFeature(generatedFeatureFilePath, featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario));
-
-            generatedFeaturePaths.add(generatedFeatureFilePath);
+                String testRunsCounterFilenamePart = String.format(TEST_RUNS_COUNTER_FORMAT, testRuns);
+                generatedFileName = generatedFileName.concat(testRunsCounterFilenamePart);
+                if (propertyManager.isCucumberFeatureListFileSource()) {
+                    generatedFileName = generatedFileName.concat(TEST_RERUNS_FORMAT);
+                }
+                generatedFileName = generatedFileName.concat(INTEGRATION_TEST_POSTFIX);
+                saveFeature(
+                        generatedFileName,
+                        featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario)
+                );
+                generatedFeaturePaths.add(generatedFileName);
+                singleFeatureCounters.put(featureFileName, featureCounter);
+            }
         }
 
         logFeatureFileConversionMessage(sourceFeatureFilePath.toString(), singleScenarios.size());
         return generatedFeaturePaths;
-    }
-
-    /**
-     * Save generated feature file contents and return the file path.
-     *
-     * @param generatedFeatureFilePath   The generated feature file path.
-     * @param renderedFeatureFileContent The rendered file contents.
-     * @throws FileCreationException if the file cannot be created.
-     */
-    private void saveFeature(final String generatedFeatureFilePath, final String renderedFeatureFileContent)
-            throws FileCreationException {
-
-        fileIO.writeContentToFile(renderedFeatureFileContent, generatedFeatureFilePath);
     }
 
     /**
@@ -273,44 +257,53 @@ public class FeatureFileConverter {
      * @throws FileCreationException Thrown if the feature file cannot be created.
      */
     private List<String> generateFeatureFiles(
-            final Path sourceFeatureFilePath,
-            final List<SingleScenario> singleScenarios) throws FileCreationException {
-
-        String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
-        String browserName = propertyManager.getBrowserNames().get(0); // Assuming only one browser name is specified
-
-        // Create a folder for the browser if it doesn't exist
-        String browserFolderPath = propertyManager.getGeneratedFeatureDirectory() + "/" + browserName;
-        fileSystemManager.createFolder(browserFolderPath);
+            final Path sourceFeatureFilePath, final String featureFileContent) throws FileCreationException {
 
         // Stores all generated feature file names and associated source feature paths for later runner creation
         List<String> generatedFeaturePaths = new ArrayList<>();
 
-        // Default parallelization mode
-        for (SingleScenario singleScenario : singleScenarios) {
-            String scenarioName = singleScenario.getScenarioName();
-            String generatedFileName = featureFileName + "_" + browserName + "_" + scenarioName;
-
-            String generatedFeatureFilePath = browserFolderPath + "/" + generatedFileName + FEATURE_FILE_EXTENSION;
-            saveFeature(generatedFeatureFilePath, featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario));
-
-            generatedFeaturePaths.add(generatedFeatureFilePath);
+        // Only parallelize complete features
+        String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
+        Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
+        featureCounter++;
+        String featureCounterFilenamePart = String.format(FEATURE_COUNTER_FORMAT, featureCounter);
+        for (int testRuns = 1; testRuns <= propertyManager.getNumberOfTestRuns(); testRuns++) {
+            String testRunsCounterFilenamePart = String.format(TEST_RUNS_COUNTER_FORMAT, testRuns);
+            String generatedFileName =
+                    featureFileName
+                            .concat(featureCounterFilenamePart)
+                            .concat(testRunsCounterFilenamePart)
+                            .concat(INTEGRATION_TEST_POSTFIX);
+            saveFeature(
+                    generatedFileName,
+                    featureFileContent
+            );
+            generatedFeaturePaths.add(generatedFileName);
+            singleFeatureCounters.put(featureFileName, featureCounter);
         }
 
-        logFeatureFileConversionMessage(sourceFeatureFilePath.toString(), singleScenarios.size());
+        logger.info(String.format("- processed %s.", featureFileName), DEFAULT);
+
         return generatedFeaturePaths;
     }
 
     /**
      * Save generated feature file contents and return the file path.
      *
-     * @param generatedFeatureFilePath   The generated feature file path.
+     * @param featureFileName            The feature file name.
      * @param renderedFeatureFileContent The rendered file contents.
      * @throws FileCreationException if the file cannot be created.
      */
-    private void saveFeature(final String generatedFeatureFilePath, final String renderedFeatureFileContent)
+    private void saveFeature(final String featureFileName, final String renderedFeatureFileContent)
             throws FileCreationException {
 
+        String generatedFeatureFilePath =
+                propertyManager.getGeneratedFeatureDirectory()
+                        .concat(PATH_SEPARATOR)
+                        .concat(featureFileName)
+                        .concat(FEATURE_FILE_EXTENSION);
+
+        // Save scenario information to new feature file
         fileIO.writeContentToFile(renderedFeatureFileContent, generatedFeatureFilePath);
     }
 
@@ -480,4 +473,5 @@ public class FeatureFileConverter {
         return featureFileName.replaceAll("\\W", "_");
     }
 }
-
+ 
+ 
