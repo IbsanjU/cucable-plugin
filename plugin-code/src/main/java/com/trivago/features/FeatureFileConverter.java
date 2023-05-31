@@ -36,6 +36,7 @@ import gherkin.ast.GherkinDocument;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -94,17 +95,6 @@ public class FeatureFileConverter {
         this.logger = logger;
     }
 
-    private List<String> generateParallelizableFeatures(
-            final Path sourceFeatureFilePath,
-            final List<Integer> lineNumbers,
-            final List<String> browsers) throws CucablePluginException {
-
-        if (propertyManager.getParallelizationMode() == PropertyManager.ParallelizationMode.FEATURES) {
-            return generateFeaturesWithFeaturesParallelizationMode(sourceFeatureFilePath, browsers); // Pass the browsers list to the method
-        }
-        return generateFeaturesWithScenariosParallelizationMode(sourceFeatureFilePath, lineNumbers, browsers); // Pass the browsers list to the method
-    }
-
     /**
      * Converts a list of Cucable features
      *
@@ -124,7 +114,7 @@ public class FeatureFileConverter {
                 logger.warn("No features and runners could be created. Please check your properties!");
             }
             for (Path path : paths) {
-                List<String> generatedFeatureFilePaths = generateParallelizableFeatures(path, cucableFeature.getLineNumbers(), browsers); // Pass the browsers list to the method
+                List<String> generatedFeatureFilePaths = generateParallelizableFeatures(path, cucableFeature.getLineNumbers());
                 allGeneratedFeaturePaths.addAll(generatedFeatureFilePaths);
                 featureFileCounter += generatedFeatureFilePaths.size();
             }
@@ -186,60 +176,6 @@ public class FeatureFileConverter {
         return generateFeatureFiles(sourceFeatureFilePath, featureFileContent);
     }
 
-    private List<String> generateFeaturesWithScenariosParallelizationMode(
-            final Path sourceFeatureFilePath,
-            final List<Integer> lineNumbers,
-            final List<String> browsers) throws CucablePluginException {
-
-        String featureFilePathString = sourceFeatureFilePath.toString();
-        if (featureFilePathString == null || featureFilePathString.equals("")) {
-            throw new MissingFileException(featureFilePathString);
-        }
-
-        String featureFileContent = fileIO.readContentFromFile(featureFilePathString);
-
-        List<SingleScenario> singleScenarios;
-        singleScenarios = gherkinDocumentParser.getSingleScenariosFromFeature(featureFileContent, featureFilePathString, lineNumbers);
-
-        List<SingleScenario> filteredScenarios = filterScenariosByBrowsers(singleScenarios, browsers); // Filter scenarios by browsers
-
-        return generateFeatureFiles(sourceFeatureFilePath, filteredScenarios);
-    }
-
-    private List<SingleScenario> filterScenariosByBrowsers(List<SingleScenario> scenarios, List<String> browsers) {
-        List<SingleScenario> filteredScenarios = new ArrayList<>();
-
-        for (SingleScenario scenario : scenarios) {
-            boolean hasBrowserTag = false;
-            for (String browser : browsers) {
-                if (scenario.getScenarioTags().contains("@" + browser)) {
-                    hasBrowserTag = true;
-                    break;
-                }
-            }
-            if (hasBrowserTag) {
-                filteredScenarios.add(scenario);
-            }
-        }
-
-        return filteredScenarios;
-    }
-
-//    private List<String> generateFeatureFiles(final Path sourceFeatureFilePath, final List<SingleScenario> scenarios) throws CucablePluginException {
-//        List<String> generatedFeatureFilePaths = new ArrayList<>();
-//
-//        String sourceFeatureFileContent = fileIO.readContentFromFile(sourceFeatureFilePath.toString());
-//
-//        for (SingleScenario scenario : scenarios) {
-//            String featureFileContent = gherkinDocumentParser.generateFeatureFileContentWithSingleScenario(sourceFeatureFileContent, scenario);
-//
-//            String generatedFeatureFilePath = fileSystemManager.saveFeatureFileWithContent(sourceFeatureFilePath, featureFileContent);
-//            generatedFeatureFilePaths.add(generatedFeatureFilePath);
-//        }
-//
-//        return generatedFeatureFilePaths;
-//    }
-
     /**
      * Generate features with parallelization mode 'scenarios'.
      *
@@ -284,34 +220,61 @@ public class FeatureFileConverter {
         // Stores all generated feature file names and associated source feature paths for later runner creation
         List<String> generatedFeaturePaths = new ArrayList<>();
 
-        // Default parallelization mode
-        for (SingleScenario singleScenario : singleScenarios) {
-            String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
-            Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
-            featureCounter++;
-            String scenarioCounterFilenamePart = String.format(SCENARIO_COUNTER_FORMAT, featureCounter);
-            for (int testRuns = 1; testRuns <= propertyManager.getNumberOfTestRuns(); testRuns++) {
-                String generatedFileName =
-                        featureFileName
-                                .concat(scenarioCounterFilenamePart);
+        // Get the list of browsers from the property manager
+        List<String> browsers = propertyManager.getBrowsers();
+        for (String browser : browsers) {
+            // Default parallelization mode
+            List<SingleScenario> filteredScenarios = filterScenariosByBrowser(singleScenarios, browser);
+            for (SingleScenario singleScenario : filteredScenarios) {
+                String featureFileName = getFeatureFileNameFromPath(Paths.get(sourceFeatureFilePath + "/" + browser));
+                Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
+                featureCounter++;
+                String scenarioCounterFilenamePart = String.format(SCENARIO_COUNTER_FORMAT, featureCounter);
+                for (int testRuns = 1; testRuns <= propertyManager.getNumberOfTestRuns(); testRuns++) {
+                    String generatedFileName =
+                            featureFileName
+                                    .concat(scenarioCounterFilenamePart);
 
-                String testRunsCounterFilenamePart = String.format(TEST_RUNS_COUNTER_FORMAT, testRuns);
-                generatedFileName = generatedFileName.concat(testRunsCounterFilenamePart);
-                if (propertyManager.isCucumberFeatureListFileSource()) {
-                    generatedFileName = generatedFileName.concat(TEST_RERUNS_FORMAT);
+                    String testRunsCounterFilenamePart = String.format(TEST_RUNS_COUNTER_FORMAT, testRuns);
+                    generatedFileName = generatedFileName.concat(testRunsCounterFilenamePart);
+                    if (propertyManager.isCucumberFeatureListFileSource()) {
+                        generatedFileName = generatedFileName.concat(TEST_RERUNS_FORMAT);
+                    }
+                    generatedFileName = generatedFileName.concat(INTEGRATION_TEST_POSTFIX);
+                    saveFeature(
+                            generatedFileName,
+                            featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario)
+                    );
+                    generatedFeaturePaths.add(generatedFileName);
+                    singleFeatureCounters.put(featureFileName, featureCounter);
                 }
-                generatedFileName = generatedFileName.concat(INTEGRATION_TEST_POSTFIX);
-                saveFeature(
-                        generatedFileName,
-                        featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario)
-                );
-                generatedFeaturePaths.add(generatedFileName);
-                singleFeatureCounters.put(featureFileName, featureCounter);
+            }
+        }
+        logFeatureFileConversionMessage(sourceFeatureFilePath.toString(), singleScenarios.size());
+        return generatedFeaturePaths;
+    }
+
+
+    /**
+     * Filter the single scenarios based on the browser tags.
+     *
+     * @param singleScenarios The list of single scenarios to filter.
+     * @param browser         The browser tag to filter by.
+     * @return The filtered list of single scenarios.
+     */
+    private List<SingleScenario> filterScenariosByBrowser(List<SingleScenario> singleScenarios, String browser) {
+        List<SingleScenario> filteredScenarios = new ArrayList<>();
+
+        // Loop through each single scenario
+        for (SingleScenario singleScenario : singleScenarios) {
+            // Check if the scenario tags contain the browser tag
+            List<String> scenarioTags = singleScenario.getScenarioTags();
+            if (scenarioTags.contains("@" + browser)) {
+                filteredScenarios.add(singleScenario);
             }
         }
 
-        logFeatureFileConversionMessage(sourceFeatureFilePath.toString(), singleScenarios.size());
-        return generatedFeaturePaths;
+        return filteredScenarios;
     }
 
     /**
