@@ -202,7 +202,14 @@ public class FeatureFileConverter {
                         featureFilePathString,
                         lineNumbers
                 );
-        return generateFeatureFiles(sourceFeatureFilePath, singleScenarios);
+        List<String> result;
+        try {
+            result = generateFeatureFiles(sourceFeatureFilePath, singleScenarios);
+        } catch (FileCreationException e) {
+            PropertyManager.printLineNumberAndFileName(e.fillInStackTrace().toString());
+            throw new RuntimeException(e);
+        }
+        return result;
     }
 
     /**

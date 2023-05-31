@@ -344,4 +344,12 @@ public class PropertyManager {
     public enum ParallelizationMode {
         SCENARIOS, FEATURES
     }
+
+    public static void printLineNumberAndFileName(String message) {
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        if (stackTraceElements.length >= 3) {
+            StackTraceElement element = stackTraceElements[2];
+            System.out.println("File: " + element.getFileName() + ", Line: " + element.getLineNumber() + ", Message: " + message);
+        }
+    }
 }
