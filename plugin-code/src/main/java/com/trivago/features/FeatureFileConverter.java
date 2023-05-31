@@ -233,7 +233,7 @@ public class FeatureFileConverter {
             // Default parallelization mode
             List<SingleScenario> filteredScenarios = filterScenariosByBrowser(singleScenarios, browser);
             for (SingleScenario singleScenario : filteredScenarios) {
-                String featureFileName = getFeatureFileNameFromPath(Paths.get(sourceFeatureFilePath + "/" + browser));
+                String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
                 featureFileName = appendFileName(featureFileName, browser);
                 Integer featureCounter = singleFeatureCounters.getOrDefault(featureFileName, 0);
                 featureCounter++;
