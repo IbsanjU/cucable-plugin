@@ -349,7 +349,7 @@ public class PropertyManager {
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         if (stackTraceElements.length >= 3) {
             StackTraceElement element = stackTraceElements[2];
-            System.out.println("File: " + element.getFileName() + ", Line: " + element.getLineNumber() + ", Message: " + message);
+            System.out.println("File: " + element.getFileName() + ", Line: " + element.getLineNumber() + " Method: " + element.getMethodName() + ", Message: " + message);
         }
     }
 }

@@ -225,7 +225,16 @@ public class FeatureFileConverter {
         // Get the list of browsers from the property manager
         List<String> browsers = propertyManager.getBrowsers();
         for (String browser : browsers) {
-            List<SingleScenario> singleScenariosCopy = new ArrayList<>(singleScenarios);
+            List<SingleScenario> singleScenariosCopy = new ArrayList<>();
+
+            for (SingleScenario originalScenario : singleScenarios) {
+                SingleScenario copiedScenario = new SingleScenario(originalScenario.getFeatureName(), originalScenario.getFeatureFilePath(), originalScenario.getFeatureLanguage(), originalScenario.getFeatureDescription(), originalScenario.getScenarioName(), originalScenario.getScenarioDescription(), originalScenario.getFeatureTags(), originalScenario.getBackgroundSteps());
+                copiedScenario.setScenarioTags(originalScenario.getScenarioTags());
+                copiedScenario.setSteps(originalScenario.getSteps());
+                copiedScenario.setExampleTags(originalScenario.getExampleTags());
+                singleScenariosCopy.add(copiedScenario);
+            }
+
             // Default parallelization mode
             List<SingleScenario> filteredScenarios = new ArrayList<>(filterScenariosByBrowser(singleScenariosCopy, browser));
             for (SingleScenario singleScenario : filteredScenarios) {
