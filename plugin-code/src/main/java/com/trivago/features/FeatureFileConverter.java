@@ -37,12 +37,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static com.trivago.logging.CucableLogger.CucableLogLevel.COMPACT;
 import static com.trivago.logging.CucableLogger.CucableLogLevel.DEFAULT;
@@ -230,8 +225,9 @@ public class FeatureFileConverter {
         // Get the list of browsers from the property manager
         List<String> browsers = propertyManager.getBrowsers();
         for (String browser : browsers) {
+            List<SingleScenario> singleScenariosCopy = new ArrayList<>(singleScenarios);
             // Default parallelization mode
-            List<SingleScenario> filteredScenarios = filterScenariosByBrowser(singleScenarios, browser);
+            List<SingleScenario> filteredScenarios = new ArrayList<>(filterScenariosByBrowser(singleScenariosCopy, browser));
             for (SingleScenario singleScenario : filteredScenarios) {
                 String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
                 featureFileName = appendFileName(featureFileName, browser);
@@ -249,6 +245,7 @@ public class FeatureFileConverter {
                         generatedFileName = generatedFileName.concat(TEST_RERUNS_FORMAT);
                     }
                     generatedFileName = generatedFileName.concat(INTEGRATION_TEST_POSTFIX);
+                    removeOtherBrowserTags(singleScenario, browser);
                     saveFeature(
                             generatedFileName,
                             featureFileContentRenderer.getRenderedFeatureFileContent(singleScenario)
@@ -262,6 +259,22 @@ public class FeatureFileConverter {
         return generatedFeaturePaths;
     }
 
+    /**
+     * Filter the single scenarios based on the browser tags.
+     *
+     * @param singleScenario The single scenarios.
+     * @param browser        The browser tag to filter by.
+     */
+    private void removeOtherBrowserTags(SingleScenario singleScenario, String browser) {
+        List<String> browsers = propertyManager.getBrowsers();
+        List<String> scenarioTags = singleScenario.getScenarioTags();
+        Iterator<String> i = scenarioTags.iterator();
+        while (i.hasNext()) {
+            String tag = i.next().substring(1);
+            if (!tag.equals(browser) && browsers.contains(tag)) i.remove();
+        }
+//        singleScenario.setScenarioTags(scenarioTags);
+    }
 
     /**
      * Filter the single scenarios based on the browser tags.
