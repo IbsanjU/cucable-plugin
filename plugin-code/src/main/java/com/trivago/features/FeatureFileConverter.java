@@ -225,18 +225,8 @@ public class FeatureFileConverter {
         // Get the list of browsers from the property manager
         List<String> browsers = propertyManager.getBrowsers();
         for (String browser : browsers) {
-            List<SingleScenario> singleScenariosCopy = new ArrayList<>();
-
-            for (SingleScenario originalScenario : singleScenarios) {
-                SingleScenario copiedScenario = new SingleScenario(originalScenario.getFeatureName(), originalScenario.getFeatureFilePath(), originalScenario.getFeatureLanguage(), originalScenario.getFeatureDescription(), originalScenario.getScenarioName(), originalScenario.getScenarioDescription(), originalScenario.getFeatureTags(), originalScenario.getBackgroundSteps());
-                copiedScenario.setScenarioTags(originalScenario.getScenarioTags());
-                copiedScenario.setSteps(originalScenario.getSteps());
-                copiedScenario.setExampleTags(originalScenario.getExampleTags());
-                singleScenariosCopy.add(copiedScenario);
-            }
-
             // Default parallelization mode
-            List<SingleScenario> filteredScenarios = new ArrayList<>(filterScenariosByBrowser(singleScenariosCopy, browser));
+            List<SingleScenario> filteredScenarios = new ArrayList<>(filterScenariosByBrowser(singleScenarios, browser));
             for (SingleScenario singleScenario : filteredScenarios) {
                 String featureFileName = getFeatureFileNameFromPath(sourceFeatureFilePath);
                 featureFileName = featureFileName + "_" + browser;
@@ -300,7 +290,11 @@ public class FeatureFileConverter {
             // Check if the scenario tags contain the browser tag
             List<String> scenarioTags = singleScenario.getScenarioTags();
             if (scenarioTags.contains("@" + browser)) {
-                filteredScenarios.add(singleScenario);
+                SingleScenario copiedScenario = new SingleScenario(singleScenario.getFeatureName(), singleScenario.getFeatureFilePath(), singleScenario.getFeatureLanguage(), singleScenario.getFeatureDescription(), singleScenario.getScenarioName(), singleScenario.getScenarioDescription(), singleScenario.getFeatureTags(), singleScenario.getBackgroundSteps());
+                copiedScenario.setScenarioTags(singleScenario.getScenarioTags());
+                copiedScenario.setSteps(singleScenario.getSteps());
+                copiedScenario.setExampleTags(singleScenario.getExampleTags());
+                filteredScenarios.add(copiedScenario);
             }
         }
 
