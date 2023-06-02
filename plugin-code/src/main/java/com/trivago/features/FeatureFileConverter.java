@@ -286,15 +286,25 @@ public class FeatureFileConverter {
         List<SingleScenario> filteredScenarios = new ArrayList<>();
 
         // Loop through each single scenario
-        for (SingleScenario singleScenario : singleScenarios) {
+        for (SingleScenario os : singleScenarios) {
             // Check if the scenario tags contain the browser tag
-            List<String> scenarioTags = singleScenario.getScenarioTags();
+            List<String> scenarioTags = os.getScenarioTags();
             if (scenarioTags.contains("@" + browser)) {
-                SingleScenario copiedScenario = new SingleScenario(singleScenario.getFeatureName(), singleScenario.getFeatureFilePath(), singleScenario.getFeatureLanguage(), singleScenario.getFeatureDescription(), singleScenario.getScenarioName(), singleScenario.getScenarioDescription(), singleScenario.getFeatureTags(), singleScenario.getBackgroundSteps());
-                copiedScenario.setScenarioTags(singleScenario.getScenarioTags());
-                copiedScenario.setSteps(singleScenario.getSteps());
-                copiedScenario.setExampleTags(singleScenario.getExampleTags());
-                filteredScenarios.add(copiedScenario);
+                // Create a new instance of SingleScenario and copy the necessary attributes
+                SingleScenario fs = new SingleScenario(
+                        os.getFeatureName(),
+                        os.getFeatureFilePath(),
+                        os.getFeatureLanguage(),
+                        os.getFeatureDescription(),
+                        os.getScenarioName(),
+                        os.getScenarioDescription(),
+                        os.getFeatureTags(),
+                        os.getBackgroundSteps()
+                );
+                fs.setScenarioTags(new ArrayList<>(os.getScenarioTags()));
+                fs.setSteps(new ArrayList<>(os.getSteps()));
+                fs.setExampleTags(new ArrayList<>(os.getExampleTags()));
+                filteredScenarios.add(fs);
             }
         }
 
